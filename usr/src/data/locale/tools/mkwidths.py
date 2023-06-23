@@ -29,12 +29,7 @@ def u8_str(val):
     of the numeric value, which should be a valid Unicode code point.
     """
     u8str = unichr(val).encode('utf-8')
-    idx = 0
-    out = ""
-    while idx < len(u8str):
-        out += "\\x%X" % ord(u8str[idx])
-        idx += 1
-    return out
+    return "".join("\\x%X" % ord(u8str[idx]) for idx in range(len(u8str)))
 
 
 def load_utf8():
@@ -56,7 +51,7 @@ def do_width_file(width, filename):
     This function takes a file pairs of unicode values (hex), each of
     which is a range of unicode values, that all have the given width.
     """
-    for line in open(filename).readlines():
+    for line in open(filename):
         if line.startswith("#"):
             continue
         vals = line.split()
@@ -68,7 +63,7 @@ def do_width_file(width, filename):
                 key = u8_str(val)
                 val += 1
                 sym = SYMBOLS.get(key, None)
-                if sym == None:
+                if sym is None:
                     continue
                 print("%s\t%d" % (sym, width))
             vals = vals[2:]

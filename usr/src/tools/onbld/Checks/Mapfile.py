@@ -45,11 +45,7 @@ from onbld.Checks import CmtBlk
 MAPFILE = MAPFILE.splitlines()[1:]		# Don't include initial \n
 
 def mapfilechk(fh, filename=None, verbose=False, output=sys.stderr):
-	if filename:
-		name = filename
-	else:
-		name = fh.name
-
+	name = filename if filename else fh.name
 	# Verify that the mapfile is using version 2 syntax. Read and discard
 	# comment and empty lines until the first non-empty line is seen.
 	# This line must be '$mapfile_version 2'.

@@ -278,10 +278,11 @@ for alternate, correct in case.items():
 	caseREs.append(entry)
 
 def spellcheck_line(line):
-	errs = []
-	for entry in misspellingREs:
-		if entry[0].search(line):
-			errs.append(spellMsg.format(entry[1], entry[2]))
+	errs = [
+		spellMsg.format(entry[1], entry[2])
+		for entry in misspellingREs
+		if entry[0].search(line)
+	]
 	for entry in alternateREs:
 		if entry[0].search(line):
 			errs.append(altMsg.format(entry[1], entry[2]))
@@ -291,19 +292,15 @@ def spellcheck_line(line):
 	return errs
 
 def spellcheck(fh, filename=None, output=sys.stderr, **opts):
-	lineno = 1
 	ret = 0
 
 	if not filename:
 		filename = fh.name
 
 	fh.seek(0)
-	for line in fh:
+	for lineno, line in enumerate(fh, start=1):
 		line = line.decode(errors='replace')
 		for err in spellcheck_line(line):
-			output.write('{}: Line {} {}\n'.format(
-			    filename, lineno, err))
+			output.write(f'{filename}: Line {lineno} {err}\n')
 			ret = 1
-		lineno += 1
-
 	return ret

@@ -62,12 +62,12 @@ def comchk(comments, check_db=True, output=sys.stderr):
 	'''
 	bugnospcre = re.compile(r'^(\d{2,7})([^ ].*)')
 	ignorere = re.compile(r'^(' +
-                              r'Portions contributed by|' +
-                              r'Contributed by|' +
-                              r'Reviewed[ -]by|' +
-                              r'Approved[ -]by|' +
-                              r'back[ -]?out)' +
-                              r'[: ]')
+	r'Portions contributed by|' +
+	r'Contributed by|' +
+	r'Reviewed[ -]by|' +
+	r'Approved[ -]by|' +
+	r'back[ -]?out)' +
+	r'[: ]')
 
 	errors = { 'bugnospc': [],
 		   'mutant': [],
@@ -85,7 +85,7 @@ def comchk(comments, check_db=True, output=sys.stderr):
 
 		# Our input must be newline-free, comments are line-wise.
 		if com.find('\n') != -1:
-			raise ValueError("newline in comment '%s'" % com)
+			raise ValueError(f"newline in comment '{com}'")
 
 		# Ignore valid comments we can't check
 		if ignorere.search(com):
@@ -96,33 +96,25 @@ def comchk(comments, check_db=True, output=sys.stderr):
 			continue
 
 		for err in spellcheck_line(com):
-			errors['spelling'].append(
-			    'comment line {} - {}'.format(lineno, err))
+			errors['spelling'].append(f'comment line {lineno} - {err}')
 
-		match = bugre.search(com)
-		if match:
+		if match := bugre.search(com):
 			if match.group(1) not in bugs:
 				bugs[match.group(1)] = []
 			bugs[match.group(1)].append(match.group(2))
 			continue
 
-		#
-		# Bugs missing a space after the ID are still bugs
-		# for the purposes of the duplicate ID and synopsis
-		# checks.
-		#
-		match = bugnospcre.search(com)
-		if match:
-			if match.group(1) not in bugs:
-				bugs[match.group(1)] = []
-			bugs[match.group(1)].append(match.group(2))
+		if match := bugnospcre.search(com):
+			if match[1] not in bugs:
+				bugs[match[1]] = []
+			bugs[match[1]].append(match[2])
 			errors['bugnospc'].append(com)
 			continue
 
 		# Anything else is bogus
 		errors['mutant'].append(com)
 
-	if len(bugs) > 0 and check_db:
+	if bugs and check_db:
 		bugdb = BugDB()
 		results = bugdb.lookup(list(bugs.keys()))
 
@@ -144,8 +136,7 @@ def comchk(comments, check_db=True, output=sys.stderr):
 		#
 		for entered in insts:
 			synopsis = results[crid]["synopsis"]
-			if not re.search(r'^' + re.escape(synopsis) +
-					r'( \([^)]+\))?$', entered):
+			if not re.search((f'^{re.escape(synopsis)}' + r'( \([^)]+\))?$'), entered):
 				errors['nomatch'].append([crid, synopsis,
 							entered])
 
@@ -193,6 +184,6 @@ def comchk(comments, check_db=True, output=sys.stderr):
 		ret = 1
 		output.write("Spellcheck:\n")
 		for err in errors['spelling']:
-			output.write('{}\n'.format(err))
+			output.write(f'{err}\n')
 
 	return ret

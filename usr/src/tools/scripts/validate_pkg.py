@@ -104,19 +104,15 @@ class FileInfo(object):
         if self.target:
             return "link"
 
-        if self.hardkey:
-            return "hardlink"
-
-        return "file"
+        return "hardlink" if self.hardkey else "file"
 
     def checkmodes(self, modechecks):
         """Check for and report on unsafe permissions.
 
         Returns a potentially empty list of warning strings.
         """
-        w = []
-
         t = self.name()
+        w = []
         if t in ("link", "hardlink"):
             return w
         m = int(self.mode, 8)
@@ -127,7 +123,7 @@ class FileInfo(object):
             if m & (stat.S_ISUID | stat.S_ISGID):
                 if m & (stat.S_IRGRP | stat.S_IROTH):
                     w.extend(["%s: 0%o: setuid/setgid file should not be " \
-                        "readable by group or other" % (p, m)])
+                            "readable by group or other" % (p, m)])
 
         if "o" in modechecks and o != "root" and ((m & stat.S_ISUID) == 0):
             mu = (m & stat.S_IRWXU) >> 6
@@ -143,13 +139,16 @@ class FileInfo(object):
                 (t == "file" and o == "bin" and mu & 0o1 == 0o1) or
                 (m & 0o105 != 0 and p.startswith("etc/security/dev/"))):
                 w.extend(["%s: owner \"%s\" may be safely " \
-                    "changed to \"root\"" % (p, o)])
+                        "changed to \"root\"" % (p, o)])
 
         if "w" in modechecks and t == "file" and o != "root":
             uwx = stat.S_IWUSR | stat.S_IXUSR
             if m & uwx == uwx:
-                w.extend(["%s: non-root-owned executable should not " \
-                    "also be writable by owner." % p])
+                w.extend(
+                    [
+                        f"{p}: non-root-owned executable should not also be writable by owner."
+                    ]
+                )
 
         if ("m" in modechecks and
             m & (stat.S_IWGRP | stat.S_IWOTH) != 0 and
@@ -252,8 +251,8 @@ class FileInfo(object):
         name = self.name()
         out = name
 
-        for member, label in OUTPUTMAP[name]:
-            out += " " + label + str(getattr(self, member))
+        for member, label in OUTPUTMAP[out]:
+            out += f" {label}{str(getattr(self, member))}"
 
         return out
 
@@ -280,10 +279,16 @@ class FileInfo(object):
             owner = "root"
             group = "other"
 
-        out = "%c %-30s %-20s %4s %-5s %-5s %6d %2ld  -  -" % \
-            (ftype, self.path, target, mode, owner, group, 0, 1)
-
-        return out
+        return "%c %-30s %-20s %4s %-5s %-5s %6d %2ld  -  -" % (
+            ftype,
+            self.path,
+            target,
+            mode,
+            owner,
+            group,
+            0,
+            1,
+        )
 
 
 class ActionInfo(FileInfo):
@@ -416,15 +421,13 @@ class DirectoryTree(dict):
         onlykeys2 = keys2.difference(common)
 
         if onlykeys1:
-            print("Entries present in %s but not %s:" % \
-                (self.name, other.name))
+            print(f"Entries present in {self.name} but not {other.name}:")
             for path in sorted(onlykeys1):
                 print(("\t%s" % str(self[path])))
             print("")
 
         if onlykeys2:
-            print("Entries present in %s but not %s:" % \
-                (other.name, self.name))
+            print(f"Entries present in {other.name} but not {self.name}:")
             for path in sorted(onlykeys2):
                 print(("\t%s" % str(other[path])))
             print("")
@@ -434,8 +437,7 @@ class DirectoryTree(dict):
             if self[path] != other[path]:
                 if nodifferences:
                     nodifferences = False
-                    print("Entries that differ between %s and %s:" \
-                        % (self.name, other.name))
+                    print(f"Entries that differ between {self.name} and {other.name}:")
                 print(("%14s %s" % (self.name, self[path])))
                 print(("%14s %s" % (other.name, other[path])))
         if not nodifferences:
@@ -448,7 +450,7 @@ class BadProtolistFormat(Exception):
     parse as protolist output.
     """
     def __str__(self):
-        return 'bad proto list entry: "%s"' % Exception.__str__(self)
+        return f'bad proto list entry: "{Exception.__str__(self)}"'
 
 
 class ProtoTree(DirectoryTree):
@@ -514,7 +516,7 @@ class ProtoTree(DirectoryTree):
         try:
             plist = open(protolist)
         except IOError as exc:
-            raise IOError("cannot open proto list: %s" % str(exc))
+            raise IOError(f"cannot open proto list: {str(exc)}")
 
         newentries = {}
 
@@ -535,7 +537,7 @@ class ProtoTree(DirectoryTree):
                 fileinfo.path = pline[1]
                 if pline[2] != "-":
                     fileinfo.target = os.path.normpath(pline[2])
-                fileinfo.mode = int("0%s" % pline[3])
+                fileinfo.mode = int(f"0{pline[3]}")
                 fileinfo.owner = pline[4]
                 fileinfo.group = pline[5]
                 if pline[6] != "0":
@@ -566,7 +568,7 @@ class ManifestParsingError(Exception):
         self.error = error
 
     def __str__(self):
-        return "unable to parse manifest %s: %s" % (self.mfile, self.error)
+        return f"unable to parse manifest {self.mfile}: {self.error}"
 
 
 class ManifestTree(DirectoryTree):
@@ -586,7 +588,7 @@ class ManifestTree(DirectoryTree):
         try:
             mfest.set_content(open(os.path.join(root, mfile)).read())
         except IOError as exc:
-            raise IOError("cannot read manifest: %s" % str(exc))
+            raise IOError(f"cannot read manifest: {str(exc)}")
         except actions.ActionError as exc:
             raise ManifestParsingError(mfile, str(exc))
 
@@ -602,7 +604,7 @@ class ManifestTree(DirectoryTree):
         modewarnings = set()
         for action in mfest.gen_actions():
             if "path" not in action.attrs or \
-                not ActionInfo.supported(action.name):
+                    not ActionInfo.supported(action.name):
                 continue
 
             #
@@ -659,8 +661,8 @@ class ManifestTree(DirectoryTree):
             if modechecks is not None and path not in exceptions:
                 modewarnings.update(self[path].checkmodes(modechecks))
 
-        if len(modewarnings) > 0:
-            print("warning: unsafe permissions in %s" % mfile)
+        if modewarnings:
+            print(f"warning: unsafe permissions in {mfile}")
             for w in sorted(modewarnings):
                 print(w)
             print("")
@@ -711,15 +713,12 @@ class ExceptionList(set):
         architecture token.)
         """
 
-        excfile = open(efile)
-
-        for exc in excfile:
-            exc = exc.split()
-            if len(exc) and exc[0][0] != "#":
-                if arch in (exc[1:] or arch):
-                    self.add(os.path.normpath(exc[0]))
-
-        excfile.close()
+        with open(efile) as excfile:
+            for exc in excfile:
+                exc = exc.split()
+                if len(exc) and exc[0][0] != "#":
+                    if arch in (exc[1:] or arch):
+                        self.add(os.path.normpath(exc[0]))
 
 
 USAGE = """%s [-v] -a arch [-e exceptionfile]... [-L|-M [-X check]...] input_1 [input_2]

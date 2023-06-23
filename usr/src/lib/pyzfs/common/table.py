@@ -34,7 +34,7 @@ class Table:
 		self.fields = fields
 		self.rjustfields = rjustfields
 		self.maxfieldlen = dict.fromkeys(fields, 0)
-		self.lines = list()
+		self.lines = []
 
 	def __updatemax(self, k, v):
 		self.maxfieldlen[k] = max(self.maxfieldlen.get(k, None), v)
@@ -42,12 +42,12 @@ class Table:
 	def addline(self, sortkey, values):
 		"""values is a dict from field name to value"""
 
-		va = list()
+		va = []
 		for f in self.fields:
 			v = str(values[f])
 			va.append(v)
 			self.__updatemax(f, len(v))
-		if sortkey == None:
+		if sortkey is None:
 			sortkey = []
 		self.lines.append((sortkey, va))
 
@@ -64,10 +64,7 @@ class Table:
 					line += va[i]
 					line += "\t"
 				else:
-					if self.fields[i] in self.rjustfields:
-						fmt = "%*s  "
-					else:
-						fmt = "%-*s  "
+					fmt = "%*s  " if self.fields[i] in self.rjustfields else "%-*s  "
 					mfl = self.maxfieldlen[self.fields[i]]
 					line += fmt % (mfl, va[i])
 			print(line)

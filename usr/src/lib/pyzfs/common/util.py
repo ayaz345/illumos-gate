@@ -46,14 +46,12 @@ except:
 
 def default_repr(self):
 	"""A simple __repr__ function."""
-	if self.__slots__:
-		str = "<" + self.__class__.__name__
-		for v in self.__slots__:
-			str += " %s: %r" % (v, getattr(self, v))
-		return str + ">"
-	else:
-		return "<%s %s>" % \
-		    (self.__class__.__name__, repr(self.__dict__))
+	if not self.__slots__:
+		return f"<{self.__class__.__name__} {repr(self.__dict__)}>"
+	str = f"<{self.__class__.__name__}"
+	for v in self.__slots__:
+		str += " %s: %r" % (v, getattr(self, v))
+	return f"{str}>"
 
 class ZFSError(Exception):
 	"""This exception class represents a potentially user-visible
@@ -79,11 +77,8 @@ class ZFSError(Exception):
 	def __str__(self):
 		s = ""
 		if self.task:
-			s += self.task + ": "
-		if self.why:
-			s += self.why
-		else:
-			s += self.strerror
+			s += f"{self.task}: "
+		s += self.why if self.why else self.strerror
 		return s
 
 	__strs = {

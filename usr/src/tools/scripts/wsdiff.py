@@ -138,10 +138,10 @@ else:
 #
 
 # Debug message to be printed to the screen, and the log file
-def debug(msg) :
+def debug(msg):
 
 	# Add prefix to highlight debugging message
-	msg = "## " + msg
+	msg = f"## {msg}"
 	if debugon :
 		output_lock.acquire()
 		print(msg)
@@ -167,15 +167,15 @@ def info(msg) :
 		log_lock.release()
 
 # Error message to be printed to the screen, and the log file
-def error(msg) :
+def error(msg):
 
 	output_lock.acquire()
-	print("ERROR: " + msg, file=sys.stderr)
+	print(f"ERROR: {msg}", file=sys.stderr)
 	sys.stderr.flush()
 	output_lock.release()
-	if logging :
+	if logging:
 		log_lock.acquire()
-		print("ERROR: " + msg, file=log)
+		print(f"ERROR: {msg}", file=log)
 		log.flush()
 		log_lock.release()
 
@@ -210,12 +210,12 @@ def difference(f, dtype, diffs) :
 #
 # Do the actual logging of the difference to the results file
 #
-def log_difference(f, dtype, diffs) :
+def log_difference(f, dtype, diffs):
 
-	if logging :
+	if logging:
 		log_lock.acquire()
 		print(f, file=log)
-		print("NOTE: " + dtype + " difference detected.", file=log)
+		print(f"NOTE: {dtype} difference detected.", file=log)
 
 		difflen = len(diffs)
 		if difflen > 0 :
@@ -239,26 +239,26 @@ def log_difference(f, dtype, diffs) :
 #
 # Return human readable diffs from two files
 #
-def diffFileData(tmpf1, tmpf2) :
+def diffFileData(tmpf1, tmpf2):
 
 	binaries = False
 
 	# Filter the data through od(1) if the data is detected
 	# as being binary
-	if isBinary(tmpf1) or isBinary(tmpf2) :
+	if isBinary(tmpf1) or isBinary(tmpf2):
 		binaries = True
-		tmp_od1 = tmpf1 + ".od"
-		tmp_od2 = tmpf2 + ".od"
+		tmp_od1 = f"{tmpf1}.od"
+		tmp_od2 = f"{tmpf2}.od"
 
-		cmd = od_cmd + " -c -t x4" + " " + tmpf1 + " > " + tmp_od1
+		cmd = f"{od_cmd} -c -t x4 {tmpf1} > {tmp_od1}"
 		os.system(cmd)
-		cmd = od_cmd + " -c -t x4" + " " + tmpf2 + " > " + tmp_od2
+		cmd = f"{od_cmd} -c -t x4 {tmpf2} > {tmp_od2}"
 		os.system(cmd)
 
 		tmpf1 = tmp_od1
 		tmpf2 = tmp_od2
 
-	dcmd = "{} {} {} {}".format(diff_cmd, diff_args, tmpf1, tmpf2)
+	dcmd = f"{diff_cmd} {diff_args} {tmpf1} {tmpf2}"
 	try:
 		rc, data = getoutput(dcmd)
 		if rc == 0:
@@ -270,20 +270,17 @@ def diffFileData(tmpf1, tmpf2) :
 			data = data.split("\n", 2)[-1]
 
 		# Remove the temp files as we no longer need them.
-		if binaries :
+		if binaries:
 			try:
 				os.unlink(tmp_od1)
 				os.unlink(tmp_od2)
 			except OSError as e:
-				error("diffFileData: unlink failed {}"
-				    .format(e))
+				error(f"diffFileData: unlink failed {e}")
 	except:
-		error("failed to get output of command: " + dcmd)
+		error(f"failed to get output of command: {dcmd}")
 
 		# Send exception for the failed command up
 		raise
-		return
-
 	return data
 
 #####
@@ -300,7 +297,7 @@ def str_prefix_trunc(s, prefix) :
 # the deliverable's eventual path relative to root
 # e.g. proto.base/root_sparc/usr/src/cmd/prstat => usr/src/cmd/prstat
 #
-def fnFormat(fn) :
+def fnFormat(fn):
 	global baseWsRoot, ptchWsRoot
 
 	if (baseWsRoot and
@@ -313,15 +310,12 @@ def fnFormat(fn) :
 
 	# Fall back to looking for the expected root_<arch>[-nd] string
 
-	pos = fn.find("root_" + arch)
+	pos = fn.find(f"root_{arch}")
 	if pos == -1 :
 		return fn
 
 	pos = fn.find("/", pos)
-	if pos == -1 :
-		return fn
-
-	return fn[pos + 1:]
+	return fn if pos == -1 else fn[pos + 1:]
 
 #
 # Find the path to a proto root given the name of a file or directory under it
@@ -338,15 +332,12 @@ def protoroot(fn):
 	# genunix was not found, try and determine the root by checking for
 	# the expected root_<arch>[-nd] string
 
-	pos = fn.find("root_" + arch)
+	pos = fn.find(f"root_{arch}")
 	if pos == -1:
 		return None
 
 	pos = fn.find("/", pos)
-	if pos == -1:
-		return fn
-
-	return fn[:pos]
+	return fn if pos == -1 else fn[:pos]
 
 #####
 # Usage / argument processing
@@ -373,7 +364,7 @@ def usage() :
 #
 # Process command line options
 #
-def args() :
+def args():
 
 	global debugon
 	global logging
@@ -404,26 +395,26 @@ def args() :
 	if len(args) != 2 :
 		usage();
 
-	for opt,val in optlist :
-		if opt == '-d' :
+	for opt,val in optlist:
+		if opt == '-U':
+			diff_args = f'-U{str(val)}'
+		elif opt == '-V':
+			reportAllSects = True
+		elif opt == '-d':
 			debugon = True
-		elif opt == '-i' :
+		elif opt == '-i':
 			fileNamesFile = val
-		elif opt == '-r' :
+		elif opt == '-r':
 			results = val
 			logging = True
-		elif opt == '-s' :
+		elif opt == '-s':
 			o_sorted = True
-		elif opt == '-u' :
-			diff_args = '-u'
-		elif opt == '-U' :
-			diff_args = '-U' + str(val)
-		elif opt == '-v' :
-			vdiffs = True
-		elif opt == '-V' :
-			reportAllSects = True
 		elif opt == '-t':
 			localTools = True
+		elif opt == '-u':
+			diff_args = '-u'
+		elif opt == '-v':
+			vdiffs = True
 		else:
 			usage()
 
@@ -457,28 +448,28 @@ def args() :
 # certain file types that require special handling to
 # compare. Otherwise just return a basic "ASCII" type.
 #
-def getTheFileType(f) :
-
-	extensions = { 'a'	:	'ELF Object Archive',
-		       'jar'	:	'Java Archive',
-		       'html'	:	'HTML',
-		       'ln'	:	'Lint Library',
-		       'db'	:	'Sqlite Database' }
+def getTheFileType(f):
 
 	try:
 		if os.stat(f)[ST_SIZE] == 0 :
 			return 'ASCII'
 	except:
-		error("failed to stat " + f)
+		error(f"failed to stat {f}")
 		return 'Error'
 
 	if isELF(f) == 1 :
 		return 'ELF'
 
 	fnamelist = f.split('.')
-	if len(fnamelist) > 1 :	# Test the file extension
+	if len(fnamelist) > 1:# Test the file extension
 		extension = fnamelist[-1]
-		if extension in extensions.keys():
+		extensions = { 'a'	:	'ELF Object Archive',
+			       'jar'	:	'Java Archive',
+			       'html'	:	'HTML',
+			       'ln'	:	'Lint Library',
+			       'db'	:	'Sqlite Database' }
+
+		if extension in extensions:
 			return extensions[extension]
 
 	return 'ASCII'
@@ -533,23 +524,20 @@ def findFiles(d) :
 # a list of new files (files found only in ptch) and
 # a list of deleted files (files found only in base)
 #
-def protoCatalog(base, ptch) :
+def protoCatalog(base, ptch):
 
 	compFiles = []		# List of files in both proto areas
 	ptchList = []		# List of file in patch proto area
 
-	newFiles = []		# New files detected
-	deletedFiles = []	# Deleted files
-
 	debug("Getting the list of files in the base area");
 	baseFilesList = list(findFiles(base))
 	baseStringLength = len(base)
-	debug("Found " + str(len(baseFilesList)) + " files")
+	debug(f"Found {len(baseFilesList)} files")
 
 	debug("Getting the list of files in the patch area");
 	ptchFilesList = list(findFiles(ptch))
 	ptchStringLength = len(ptch)
-	debug("Found " + str(len(ptchFilesList)) + " files")
+	debug(f"Found {len(ptchFilesList)} files")
 
 	# Inventory files in the base proto area
 	debug("Determining the list of regular files in the base area");
@@ -559,7 +547,7 @@ def protoCatalog(base, ptch) :
 
 		fileName = fn[baseStringLength:]
 		compFiles.append(fileName)
-	debug("Found " + str(len(compFiles)) + " files")
+	debug(f"Found {len(compFiles)} files")
 
 	# Inventory files in the patch proto area
 	debug("Determining the list of regular files in the patch area");
@@ -569,14 +557,12 @@ def protoCatalog(base, ptch) :
 
 		fileName = fn[ptchStringLength:]
 		ptchList.append(fileName)
-	debug("Found " + str(len(ptchList)) + " files")
+	debug(f"Found {len(ptchList)} files")
 
 	# Deleted files appear in the base area, but not the patch area
 	debug("Searching for deleted files by comparing the lists")
-	for fileName in compFiles :
-		if not fileName in ptchList :
-			deletedFiles.append(fileName)
-	debug("Found " + str(len(deletedFiles)) + " deleted files")
+	deletedFiles = [fileName for fileName in compFiles if fileName not in ptchList]
+	debug(f"Found {len(deletedFiles)} deleted files")
 
 	# Eliminate "deleted" files from the list of objects appearing
 	# in both the base and patch proto areas
@@ -586,15 +572,12 @@ def protoCatalog(base, ptch) :
 			compFiles.remove(fileName)
 		except:
 			error("filelist.remove() failed")
-	debug("List for comparison reduced to " + str(len(compFiles))
-	    + " files")
+	debug(f"List for comparison reduced to {len(compFiles)} files")
 
 	# New files appear in the patch area, but not the base
 	debug("Getting the list of newly added files")
-	for fileName in ptchList :
-		if not fileName in compFiles :
-			newFiles.append(fileName)
-	debug("Found " + str(len(newFiles)) + " new files")
+	newFiles = [fileName for fileName in ptchList if fileName not in compFiles]
+	debug(f"Found {len(newFiles)} new files")
 
 	return compFiles, newFiles, deletedFiles
 
@@ -605,7 +588,7 @@ def protoCatalog(base, ptch) :
 # a list of new files (files found only in ptch) and
 # a list of deleted files (files found only in base)
 #
-def flistCatalog(base, ptch, flist) :
+def flistCatalog(base, ptch, flist):
 	compFiles = []		# List of files in both proto areas
 	newFiles = []		# New files detected
 	deletedFiles = []	# Deleted files
@@ -613,14 +596,14 @@ def flistCatalog(base, ptch, flist) :
 	try:
 		fd = open(flist, "r")
 	except:
-		error("could not open: " + flist)
+		error(f"could not open: {flist}")
 		cleanup(1)
 
 	files = []
 	files = fd.readlines()
 	fd.close()
 
-	for f in files :
+	for f in files:
 		ptch_present = True
 		base_present = True
 
@@ -635,41 +618,36 @@ def flistCatalog(base, ptch, flist) :
 		# the command line.
 		# If it's relative to $ROOT, we'll need to add back the
 		# root_`uname -p` goo we stripped off in fnFormat()
-		if os.path.exists(base + f) :
+		if os.path.exists(base + f):
 			fn = f;
-		elif os.path.exists(base + "root_" + arch + "/" + f) :
-			fn = "root_" + arch + "/" + f
-		else :
+		elif os.path.exists(f"{base}root_{arch}/{f}"):
+			fn = f"root_{arch}/{f}"
+		else:
 			base_present = False
 
-		if base_present :
+		if base_present:
 			if not os.path.exists(ptch + fn) :
 				ptch_present = False
-		else :
-			if os.path.exists(ptch + f) :
-				fn = f
-			elif os.path.exists(ptch + "root_" + arch + "/" + f) :
-				fn = "root_" + arch + "/" + f
-			else :
-				ptch_present = False
+		elif os.path.exists(ptch + f):
+			fn = f
+		elif os.path.exists(f"{ptch}root_{arch}/{f}"):
+			fn = f"root_{arch}/{f}"
+		else:
+			ptch_present = False
 
 		if os.path.islink(base + fn) :	# ignore links
 			base_present = False
 		if os.path.islink(ptch + fn) :
 			ptch_present = False
 
-		if base_present and ptch_present :
+		if base_present and ptch_present:
 			compFiles.append(fn)
 		elif base_present :
 			deletedFiles.append(fn)
 		elif ptch_present :
 			newFiles.append(fn)
-		else :
-			if (os.path.islink(base + fn) and
-			    os.path.islink(ptch + fn)) :
-				continue
-			error(f + " in file list, but not in either tree. " +
-			    "Skipping...")
+		elif not os.path.islink(base + fn) or not os.path.islink(ptch + fn):
+			error(f"{f} in file list, but not in either tree. Skipping...")
 
 	return compFiles, newFiles, deletedFiles
 
@@ -680,23 +658,23 @@ def flistCatalog(base, ptch, flist) :
 # the -t option was specified, we'll try to use built tools in $SRC tools,
 # and otherwise, we'll fall back on /opt/onbld/
 #
-def find_tool(tool) :
+def find_tool(tool):
 
 	# First, check what was passed
 	if os.path.exists(tool) :
 		return tool
 
 	# Next try in wsdiff path
-	for pdir in wsdiff_path :
-		location = pdir + "/" + tool
-		if os.path.exists(location) :
-			return location + " "
+	for pdir in wsdiff_path:
+		location = f"{pdir}/{tool}"
+		if os.path.exists(location):
+			return f"{location} "
 
-		location = pdir + "/" + arch + "/" + tool
-		if os.path.exists(location) :
-			return location + " "
+		location = f"{pdir}/{arch}/{tool}"
+		if os.path.exists(location):
+			return f"{location} "
 
-	error("Could not find path to: " + tool);
+	error(f"Could not find path to: {tool}");
 	sys.exit(1);
 
 
@@ -707,29 +685,26 @@ def find_tool(tool) :
 #
 # Return a dictionary of ELF section types keyed by section name
 #
-def get_elfheader(f) :
+def get_elfheader(f):
 
 	header = {}
 
-	rc, hstring = getoutput(elfdump_cmd + " -c " + f)
+	rc, hstring = getoutput(f"{elfdump_cmd} -c {f}")
 
-	if len(hstring) == 0 :
-		error("Failed to dump ELF header for " + f)
+	if len(hstring) == 0:
+		error(f"Failed to dump ELF header for {f}")
 		raise
-		return
-
 	# elfdump(1) dumps the section headers with the section name
 	# following "sh_name:", and the section type following "sh_type:"
 	sections = hstring.split("Section Header")
-	for sect in sections :
+	for sect in sections:
 		datap = sect.find("sh_name:");
 		if datap == -1 :
 			continue
 		section = sect[datap:].split()[1]
 		datap = sect.find("sh_type:");
-		if datap == -1 :
-			error("Could not get type for sect: " + section +
-			      " in " + f)
+		if datap == -1:
+			error(f"Could not get type for sect: {section} in {f}")
 		sh_type = sect[datap:].split()[2]
 		header[section] = sh_type
 
@@ -738,16 +713,13 @@ def get_elfheader(f) :
 #
 # Extract data in the specified ELF section from the given file
 #
-def extract_elf_section(f, section) :
+def extract_elf_section(f, section):
 
-	rc, data = getoutput(dump_cmd + " -sn " + section + " " + f)
+	rc, data = getoutput(f"{dump_cmd} -sn {section} {f}")
 
-	if len(data) == 0 :
-		error(dump_cmd + "yielded no data on section " + section +
-		    " of " + f)
+	if len(data) == 0:
+		error(f"{dump_cmd}yielded no data on section {section} of {f}")
 		raise
-		return
-
 	# dump(1) displays the file name to start...
 	# get past it to the data itself
 	dbegin = data.find(":") + 1
@@ -779,8 +751,8 @@ def diff_ctf(f1, f2):
 		    os.path.isfile(os.path.join(ptchWsRoot, genunix))):
 			diff_ctf.genunix1 = os.path.join(baseWsRoot, genunix)
 			diff_ctf.genunix2 = os.path.join(ptchWsRoot, genunix)
-			debug("CTF: Found {}".format(diff_ctf.genunix1))
-			debug("CTF: Found {}".format(diff_ctf.genunix2))
+			debug(f"CTF: Found {diff_ctf.genunix1}")
+			debug(f"CTF: Found {diff_ctf.genunix2}")
 		else:
 			# Could not find genunix, do the best we can.
 			error("diff_ctf: Could not find genunix. " +
@@ -789,9 +761,9 @@ def diff_ctf(f1, f2):
 
 	# Determine if this is a merged file from genunix by looking
 	# at the parent
-	rc, data = getoutput("{} -h {}".format(ctfdump_cmd, f1))
+	rc, data = getoutput(f"{ctfdump_cmd} -h {f1}")
 	if rc != 0:
-		error("Could not read CTF header: {}".format(data))
+		error(f"Could not read CTF header: {data}")
 		return (None, None)
 
 	parent = None
@@ -803,13 +775,13 @@ def diff_ctf(f1, f2):
 			except:
 				pass
 
-	cmd1 = cmd2 = "{} -c ".format(ctfdump_cmd)
+	cmd1 = cmd2 = f"{ctfdump_cmd} -c "
 	if parent == "genunix":
 		if diff_ctf.genunix1 and diff_ctf.genunix2:
-			cmd1 += "-p {} ".format(diff_ctf.genunix1)
-			cmd2 += "-p {} ".format(diff_ctf.genunix2)
+			cmd1 += f"-p {diff_ctf.genunix1} "
+			cmd2 += f"-p {diff_ctf.genunix2} "
 	elif parent is None or (len(parent) > 0 and parent != "(anon)"):
-		error("Unknown CTF Parent: {}".format(parent))
+		error(f"Unknown CTF Parent: {parent}")
 		return (None, None)
 
 	cmd1 += f1

@@ -64,8 +64,7 @@ def keywords(fh, filename=None, lenient=False, verbose=False,
         if lenient and ident.search(line):
             continue
 
-        match = anykword.findall(line)
-        if match:
+        if match := anykword.findall(line):
             ret = 1
             output.write('%s: %d: contains SCCS keywords "%s"\n' %
                          (filename, lineno, ', '.join(match)))

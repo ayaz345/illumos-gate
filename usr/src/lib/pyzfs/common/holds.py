@@ -42,7 +42,7 @@ def do_holds():
 		parser.print_help()
 		if msg:
 			print
-			parser.exit("zfs: error: " + msg)
+			parser.exit(f"zfs: error: {msg}")
 		else:
 			parser.exit()
 

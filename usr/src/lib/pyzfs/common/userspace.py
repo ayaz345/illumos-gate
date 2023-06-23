@@ -55,19 +55,16 @@ def skiptype(options, prop):
 	if isgroup and "posixgroup" not in options.types and \
 	    "smbgroup" not in options.types:
 		return True
-	if not isgroup and "posixuser" not in options.types and \
-	    "smbuser" not in options.types:
-		return True
-	return False
+	return (
+		not isgroup
+		and "posixuser" not in options.types
+		and "smbuser" not in options.types
+	)
 
 def new_entry(options, isgroup, domain, rid):
 	"""Return a dict("field": value) for this domain (string) + rid (int)"""
 
-	if domain:
-		idstr = "%s-%u" % (domain, rid)
-	else:
-		idstr = "%u" % rid
-
+	idstr = "%s-%u" % (domain, rid) if domain else "%u" % rid
 	(typename, mapfunc) = {
 	    (1, 1): ("SMB Group",   lambda id: solaris.misc.sid_to_name(id, 0)),
 	    (1, 0): ("POSIX Group", lambda id: grp.getgrgid(int(id)).gr_name),
@@ -78,9 +75,7 @@ def new_entry(options, isgroup, domain, rid):
 	if typename.lower().replace(" ", "") not in options.types:
 		return None
 
-	v = dict()
-	v["type"] = typename
-
+	v = {"type": typename}
 	# python's getpwuid/getgrgid is confused by ephemeral uids
 	if not options.noname and rid < 1<<31:
 		try:
@@ -127,12 +122,9 @@ def process_one_raw(acct, options, prop, elem):
 
 	# Add our value to an existing value, which may be present if
 	# options.translate is set.
-	value = v[field + ".sort"] = value + v[field + ".sort"]
+	value = v[f"{field}.sort"] = value + v[f"{field}.sort"]
 
-	if options.parsable:
-		v[field] = str(value)
-	else:
-		v[field] = zfs.util.nicenum(value)
+	v[field] = str(value) if options.parsable else zfs.util.nicenum(value)
 
 def do_userspace():
 	"""Implements the "zfs userspace" and "zfs groupspace" subcommands."""
@@ -141,7 +133,7 @@ def do_userspace():
 		parser.print_help()
 		if msg:
 			print
-			parser.exit("zfs: error: " + msg)
+			parser.exit(f"zfs: error: {msg}")
 		else:
 			parser.exit()
 
@@ -169,10 +161,17 @@ def do_userspace():
 	parser.add_option("-o", dest="fields", metavar="field[,...]",
 	    default="type,name,used,quota",
 	    help=_("print only these fields (eg type,name,used,quota)"))
-	parser.add_option("-s", dest="sortfields", metavar="field",
-	    type="choice", choices=fields, default=list(),
-	    action="callback", callback=zfs.util.append_with_opt,
-	    help=_("sort field"))
+	parser.add_option(
+		"-s",
+		dest="sortfields",
+		metavar="field",
+		type="choice",
+		choices=fields,
+		default=[],
+		action="callback",
+		callback=zfs.util.append_with_opt,
+		help=_("sort field"),
+	)
 	parser.add_option("-S", dest="sortfields", metavar="field",
 	    type="choice", choices=fields, #-s sets the default
 	    action="callback", callback=zfs.util.append_with_opt,
@@ -214,7 +213,7 @@ def do_userspace():
 	# gather and process accounting information
 	# Due to -i, we need to keep a dict, so we can potentially add
 	# together the posix ID and SID's usage.  Grr.
-	acct = dict()
+	acct = {}
 	for prop in props.keys():
 		if skiptype(options, prop):
 			continue;
@@ -222,10 +221,10 @@ def do_userspace():
 			process_one_raw(acct, options, prop, elem)
 
 	def cmpkey(val):
-		l = list()
+		l = []
 		for (opt, field) in options.sortfields:
 			try:
-				n = val[field + ".sort"]
+				n = val[f"{field}.sort"]
 			except KeyError:
 				n = val[field]
 			if opt == "-S":

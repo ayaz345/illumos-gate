@@ -44,7 +44,7 @@ class IROpDirective(docutils.parsers.rst.Directive):
 		node['ids'].append(name)
 		node.document = source
 
-		index = '.. index:: pair: %s; IR instruction' % name
+		index = f'.. index:: pair: {name}; IR instruction'
 		content = docutils.statemachine.ViewList()
 		content.append(index, source, lineno)
 		content.append(''   , source, lineno)

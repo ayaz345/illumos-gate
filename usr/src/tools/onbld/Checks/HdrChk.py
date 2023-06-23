@@ -78,24 +78,20 @@ class HeaderFile(object):
 		self.has_copyright = False
 		self.eof = False
 
-		if filename:
-			self.filename = filename
-		else:
-			self.filename = fh.name
+		self.filename = filename if filename else fh.name
 
 	def getline(self):
 		for line in self.file:
 			self.lineno += 1
 			if not line or line.isspace():
 				continue
-			else:
-				line = line.rstrip('\r\n')
+			line = line.rstrip('\r\n')
 
 				# Recursively join continuation lines
-				if line.endswith('\\'):
-					line = line[0:-1] + self.getline()
+			if line.endswith('\\'):
+				line = line[:-1] + self.getline()
 
-				return line
+			return line
 		else:
 			self.eof = True
 			return ''
@@ -150,7 +146,7 @@ idents = [
 	r'(@\(#\)(\w[-\.\w]+\.h)\t\d+\.\d+(\.\d+\.\d+)?\t\d\d/\d\d/\d\d SMI)',
 ]
 
-IDENT = re.compile(r'(%s)' % '|'.join(idents))
+IDENT = re.compile(f"({'|'.join(idents)})")
 
 
 def hdrchk(fh, filename=None, lenient=False, output=sys.stderr):
@@ -181,15 +177,8 @@ def hdrchk(fh, filename=None, lenient=False, output=sys.stderr):
 		found_ident = 1
 		line = hdr.skipcomments()
 
-	#
-	# Step 3: Header guards
-	#
-	match = re.search(r'^#ifndef\s([a-zA-Z0-9_]+)$', line)
-	if not match:
-		err(output, "Invalid or missing header guard", hdr)
-		ret = 1
-	else:
-		guard = match.group(1)
+	if match := re.search(r'^#ifndef\s([a-zA-Z0-9_]+)$', line):
+		guard = match[1]
 
 		if not lenient:
 			guardname = os.path.basename(hdr.filename)
@@ -203,7 +192,7 @@ def hdrchk(fh, filename=None, lenient=False, output=sys.stderr):
 			guardname = guardname.replace('.', '_').replace('-','_')
 			guardname = guardname.replace('+', "_PLUS")
 
-			if not re.search(r'^_.*%s[_]?$' % guardname, guard):
+			if not re.search(f'^_.*{guardname}[_]?$', guard):
 				err(output, "Header guard does not match "
 				    "suggested style (_FILEPATH_H_)", hdr)
 				ret = 1
@@ -218,6 +207,9 @@ def hdrchk(fh, filename=None, lenient=False, output=sys.stderr):
 			line = hdr.skipcomments()
 
 
+	else:
+		err(output, "Invalid or missing header guard", hdr)
+		ret = 1
 	#
 	# Step 4: ident string
 	#
@@ -239,19 +231,17 @@ def hdrchk(fh, filename=None, lenient=False, output=sys.stderr):
 	found_code = False
 
 	while line:
-		if not (line.startswith('#') or line.startswith('using')):
+		if not line.startswith('#') and not line.startswith('using'):
 			found_code = True
 			line = hdr.getline()
 			continue
 
-		match = re.search(r'^#include(.*)$', line)
-		if match:
+		if match := re.search(r'^#include(.*)$', line):
 			#
 			# For system files, make sure #includes are of the form:
 			# '#include <file>'
 			#
-			if not lenient and not re.search(r'\s<.*>',
-							 match.group(1)):
+			if not lenient and not re.search(r'\s<.*>', match[1]):
 				err(output, "Bad include", hdr)
 				ret = 1
 		elif not in_cplusplus and re.search(r'^#ifdef\s__cplusplus$',
@@ -265,17 +255,16 @@ def hdrchk(fh, filename=None, lenient=False, output=sys.stderr):
 			# #endif
 			#
 			line = hdr.getline()
-			if line == 'extern "C" {':
-				line = hdr.getline()
-				if line != '#endif':
-					err(output, "Bad __cplusplus clause",
-					    hdr)
-					ret = 1
-				else:
-					in_cplusplus = True
-					found_cplusplus = True
-			else:
+			if line != 'extern "C" {':
 				continue
+			line = hdr.getline()
+			if line != '#endif':
+				err(output, "Bad __cplusplus clause",
+				    hdr)
+				ret = 1
+			else:
+				in_cplusplus = True
+				found_cplusplus = True
 		elif in_cplusplus and re.search(r'^#ifdef\s__cplusplus$', line):
 			#
 			# End of C++ header guard.  Make sure it is of the form:
@@ -285,16 +274,15 @@ def hdrchk(fh, filename=None, lenient=False, output=sys.stderr):
 			# #endif
 			#
 			line = hdr.getline()
-			if line == '}':
-				line = hdr.getline()
-				if line != '#endif':
-					err(output, "Bad __cplusplus clause",
-					    hdr)
-					ret = 1
-				else:
-					in_cplusplus = False
-			else:
+			if line != '}':
 				continue
+			line = hdr.getline()
+			if line != '#endif':
+				err(output, "Bad __cplusplus clause",
+				    hdr)
+				ret = 1
+			else:
+				in_cplusplus = False
 		elif re.search(r'^#endif\s/\* [!]?%s \*/$' % guard, line):
 			#
 			# Ending header guard

@@ -37,13 +37,10 @@ def manlint(fh, filename=None, output=sys.stderr, **opts):
 	opttrans = { 'picky': None }
 
 	for x in filter(lambda x: x not in opttrans, opts):
-		raise TypeError('mandoc() got an unexpected keyword '
-				'argument %s' % x)
+		raise TypeError(f'mandoc() got an unexpected keyword argument {x}')
 
 	options = [opttrans[x] for x in opts if opts[x] and opttrans[x]]
-	options.append('-Tlint')
-	options.append('-Wwarning')
-
+	options.extend(('-Tlint', '-Wwarning'))
 	if not filename:
 		filename = fh.name
 

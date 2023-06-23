@@ -52,10 +52,7 @@ class Property(object):
 		self.name = t[0]
 		self.number = t[1]
 		self.type = t[2]
-		if self.type == "string":
-			self.default = t[3]
-		else:
-			self.default = t[4]
+		self.default = t[3] if self.type == "string" else t[4]
 		self.attr = t[5]
 		self.validtypes = t[6]
 		self.values = t[7]
@@ -69,7 +66,7 @@ class Property(object):
 		"zfs allow"."""
 		return self.attr != "readonly"
 
-proptable = dict()
+proptable = {}
 for name, t in zfs.ioctl.get_proptable().items():
 	proptable[name] = Property(t)
 del name, t
@@ -161,11 +158,10 @@ class Dataset(object):
 		while True:
 			# next_dataset raises StopIteration when done
 			(name, cookie, props) = \
-			    zfs.ioctl.next_dataset(self.name, False, cookie)
+				    zfs.ioctl.next_dataset(self.name, False, cookie)
 			ds = Dataset(name, props)
 			yield ds
-			for child in ds.descendents():
-				yield child
+			yield from ds.descendents()
 
 	def userspace(self, prop):
 		"""A generator function which iterates over a
@@ -213,13 +209,12 @@ class Dataset(object):
 
 def snapshots_fromcmdline(dsnames, recursive):
 	for dsname in dsnames:
-		if not "@" in dsname:
+		if "@" not in dsname:
 			raise zfs.util.ZFSError(errno.EINVAL,
 			    _("cannot open %s") % dsname,
 			    _("operation only applies to snapshots"))
 		try:
-			ds = Dataset(dsname)
-			yield ds
+			yield Dataset(dsname)
 		except zfs.util.ZFSError as e:
 			if not recursive or e.errno != errno.ENOENT:
 				raise
@@ -228,8 +223,7 @@ def snapshots_fromcmdline(dsnames, recursive):
 			parent = Dataset(base)
 			for child in parent.descendents():
 				try:
-					yield Dataset(child.name + "@" +
-					    snapname)
+					yield Dataset(f"{child.name}@{snapname}")
 				except zfs.util.ZFSError as e:
 					if e.errno != errno.ENOENT:
 						raise

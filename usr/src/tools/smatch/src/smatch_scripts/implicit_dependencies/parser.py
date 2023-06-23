@@ -24,12 +24,14 @@ class Parser(object):
     ):
         try:
             self.impl_dep_file = file(impl_dep_file_str, 'r')
-            self.output_file = file(output_file_str + '.json', 'w+')
+            self.output_file = file(f'{output_file_str}.json', 'w+')
             if verbose:
-                self.output_file_verbose = file(output_file_str + '_verbose.json', 'w+')
+                self.output_file_verbose = file(f'{output_file_str}_verbose.json', 'w+')
             if pretty:
-                self.pretty_output_file = file(output_file_str + '.pretty', 'w+')
-                self.pretty_output_file_verbose = file(output_file_str + '_verbose.pretty', 'w+')
+                self.pretty_output_file = file(f'{output_file_str}.pretty', 'w+')
+                self.pretty_output_file_verbose = file(
+                    f'{output_file_str}_verbose.pretty', 'w+'
+                )
         except IOError:
             sys.stderr.write("ERROR: Cannot open files %s %s.\n" % (impl_dep_file_str, output_file_str))
             sys.exit(1)
@@ -123,15 +125,17 @@ class Parser(object):
         return r
 
     def _get_json_dependencies(self):
-        implicit_dependencies = {}
-        verbose_impl_dep = {}
-        for call, dep_set in self.implicit_dependencies.iteritems():
-            implicit_dependencies[call] = list(dep_set)
-        for call, call_reasons in self.verbose_impl_dep.iteritems():
-            verbose_impl_dep[call] = map(
+        implicit_dependencies = {
+            call: list(dep_set)
+            for call, dep_set in self.implicit_dependencies.iteritems()
+        }
+        verbose_impl_dep = {
+            call: map(
                 lambda reason: self._listify_verbose_reason(reason),
                 call_reasons,
             )
+            for call, call_reasons in self.verbose_impl_dep.iteritems()
+        }
         return implicit_dependencies, verbose_impl_dep
 
     def write(self):

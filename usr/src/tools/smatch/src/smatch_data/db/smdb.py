@@ -35,13 +35,15 @@ function_ptrs = []
 searched_ptrs = []
 def get_function_pointers_helper(func):
     cur = con.cursor()
-    cur.execute("select distinct ptr from function_ptr where function = '%s';" %(func))
+    cur.execute(
+        f"select distinct ptr from function_ptr where function = '{func}';"
+    )
     for row in cur:
         ptr = row[0]
         if ptr in function_ptrs:
             continue
         function_ptrs.append(ptr)
-        if not ptr in searched_ptrs:
+        if ptr not in searched_ptrs:
             searched_ptrs.append(ptr)
             get_function_pointers_helper(ptr)
 
@@ -129,7 +131,7 @@ def add_range(rl, min_val, max_val):
         if check_next:
             # join with added range
             if max_val + 1 == cur_min:
-                ret[len(ret) - 1][1] = cur_max
+                ret[-1][1] = cur_max
                 done = 1
                 break
             # don't overlap
@@ -139,7 +141,7 @@ def add_range(rl, min_val, max_val):
                 break
             # partially overlap
             if max_val < cur_max:
-                ret[len(ret) - 1][1] = cur_max
+                ret[-1][1] = cur_max
                 done = 1
                 break
             # completely overlap
@@ -152,8 +154,7 @@ def add_range(rl, min_val, max_val):
             break
         # range is entirely below
         if max_val < cur_min:
-            ret.append([min_val, max_val])
-            ret.append([cur_min, cur_max])
+            ret.extend(([min_val, max_val], [cur_min, cur_max]))
             done = 1
             break
         # range is partially below
@@ -184,8 +185,8 @@ def add_range(rl, min_val, max_val):
         # range is above
         ret.append([cur_min, cur_max])
 
-    if idx + 1 < len(rl):          # we hit a break statement
-        ret = ret + rl[idx + 1:]
+    if idx + 1 < len(rl):      # we hit a break statement
+        ret += rl[idx + 1:]
     elif done:                     # we hit a break on the last iteration
         pass
     elif not check_next:           # it's past the end of the rl
@@ -206,26 +207,24 @@ def rl_union(rl1, rl2):
     return ret
 
 def txt_to_val(txt):
-    if txt == "s64min":
-        return -(2**63)
-    elif txt == "s32min":
-        return -(2**31)
+    if txt == "s16max":
+        return 2**15 - 1
     elif txt == "s16min":
         return -(2**15)
-    elif txt == "s64max":
-        return 2**63 - 1
     elif txt == "s32max":
         return 2**31 - 1
-    elif txt == "s16max":
-        return 2**15 - 1
-    elif txt == "u64max":
-        return 2**64 - 1
-    elif txt == "ptr_max":
-        return 2**64 - 1
-    elif txt == "u32max":
-        return 2**32 - 1
+    elif txt == "s32min":
+        return -(2**31)
+    elif txt == "s64max":
+        return 2**63 - 1
+    elif txt == "s64min":
+        return -(2**63)
     elif txt == "u16max":
         return 2**16 - 1
+    elif txt == "u32max":
+        return 2**32 - 1
+    elif txt in ["u64max", "ptr_max"]:
+        return 2**64 - 1
     else:
         try:
             return int(txt)
@@ -268,14 +267,14 @@ def get_next_str(txt):
             parsed += 1
         val = txt[1:parsed]
         parsed += 1
-    elif txt[0] == 's' or txt[0] == 'u':
+    elif txt[0] in ['s', 'u']:
         parsed += 6
         val = txt[:parsed]
     else:
         if txt[0] == '-':
             parsed += 1
         for char in txt[parsed:]:
-            if char == '-' or char == '[':
+            if char in ['-', '[']:
                 break
             parsed += 1
         val = txt[:parsed]
@@ -323,15 +322,10 @@ def rl_to_txt(rl):
 def type_to_str(type_int):
 
     t = int(type_int)
-    if db_types.has_key(t):
-        return db_types[t]
-    return type_int
+    return db_types[t] if db_types.has_key(t) else type_int
 
 def type_to_int(type_string):
-    for k in db_types.keys():
-        if db_types[k] == type_string:
-            return k
-    return -1
+    return next((k for k in db_types.keys() if db_types[k] == type_string), -1)
 
 def display_caller_info(printed, cur, param_names):
     for txt in cur:
@@ -353,11 +347,11 @@ def get_caller_info(filename, ptrs, my_type):
     cur = con.cursor()
     param_names = get_param_names(filename, func)
     printed = 0
-    type_filter = ""
-    if my_type != "":
-        type_filter = "and type = %d" %(type_to_int(my_type))
+    type_filter = "and type = %d" %(type_to_int(my_type)) if my_type != "" else ""
     for ptr in ptrs:
-        cur.execute("select * from caller_info where function = '%s' %s;" %(ptr, type_filter))
+        cur.execute(
+            f"select * from caller_info where function = '{ptr}' {type_filter};"
+        )
         printed = display_caller_info(printed, cur, param_names)
 
 def print_caller_info(filename, func, my_type = ""):
@@ -372,7 +366,7 @@ def merge_values(param_names, vals, cur):
         if parameter in param_names:
             name = name.replace("$", param_names[parameter])
 
-        if not parameter in vals:
+        if parameter not in vals:
             vals[parameter] = {}
 
         # the first item on the list is the number of rows.  it's incremented
@@ -385,7 +379,9 @@ def merge_values(param_names, vals, cur):
 def get_param_names(filename, func):
     cur = con.cursor()
     param_names = {}
-    cur.execute("select parameter, value from parameter_name where file = '%s' and function = '%s';" %(filename, func))
+    cur.execute(
+        f"select parameter, value from parameter_name where file = '{filename}' and function = '{func}';"
+    )
     for txt in cur:
         parameter = int(txt[0])
         name = txt[1]
@@ -393,7 +389,9 @@ def get_param_names(filename, func):
     if len(param_names):
         return param_names
 
-    cur.execute("select parameter, value from parameter_name where function = '%s';" %(func))
+    cur.execute(
+        f"select parameter, value from parameter_name where function = '{func}';"
+    )
     for txt in cur:
         parameter = int(txt[0])
         name = txt[1]
@@ -404,7 +402,9 @@ def get_caller_count(ptrs):
     cur = con.cursor()
     count = 0
     for ptr in ptrs:
-        cur.execute("select count(distinct(call_id)) from caller_info where function = '%s';" %(ptr))
+        cur.execute(
+            f"select count(distinct(call_id)) from caller_info where function = '{ptr}';"
+        )
         for txt in cur:
             count += int(txt[0])
     return count
@@ -516,9 +516,10 @@ def get_callers(func):
     cur = con.cursor()
     ptrs = get_function_pointers(func)
     for ptr in ptrs:
-        cur.execute("select distinct caller from caller_info where function = '%s';" %(ptr))
-        for row in cur:
-            ret.append(row[0])
+        cur.execute(
+            f"select distinct caller from caller_info where function = '{ptr}';"
+        )
+        ret.extend(row[0] for row in cur)
     return ret
 
 printed_funcs = []
@@ -574,16 +575,10 @@ def rl_is_tagged(txt):
     if not rl_too_big(txt):
         return 0
 
-    if rl_has_min_untagged(txt):
-        return 0
-
-    return 1
+    return 0 if rl_has_min_untagged(txt) else 1
 
 def rl_is_treat_untagged(txt):
-    if "[u]" in txt:
-        return 1;
-
-    return 0
+    return 1 if "[u]" in txt else 0
 
 def parse_warns_tagged(filename):
     proc = subprocess.Popen(['cat %s | grep "potentially tagged" | sort | uniq' %(filename)], shell=True, stdout=subprocess.PIPE)

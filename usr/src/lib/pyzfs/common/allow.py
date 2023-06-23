@@ -54,10 +54,10 @@ class FSPerms(object):
 		# where N is a number that we just use for sorting,
 		# type is "user", "group", "everyone", or "" (for sets)
 		# name is a user, group, or set name, or "" (for everyone)
-		self.sets = dict()
-		self.local = dict()
-		self.descend = dict()
-		self.ld = dict()
+		self.sets = {}
+		self.local = {}
+		self.descend = {}
+		self.ld = {}
 
 		# see the comment in dsl_deleg.c for the definition of whokey
 		for whokey in raw.keys():
@@ -67,7 +67,7 @@ class FSPerms(object):
 			if whotypechr == "c":
 				self.create.update(perms)
 			elif whotypechr == "s":
-				nwho = "1" + ws
+				nwho = f"1{ws}"
 				self.sets.setdefault(nwho, set()).update(perms)
 			else:
 				if whotypechr == "u":
@@ -75,13 +75,13 @@ class FSPerms(object):
 						name = pwd.getpwuid(int(ws)).pw_name
 					except KeyError:
 						name = ws
-					nwho = "1user " + name
+					nwho = f"1user {name}"
 				elif whotypechr == "g":
 					try:
 						name = grp.getgrgid(int(ws)).gr_name
 					except KeyError:
 						name = ws
-					nwho = "2group " + name
+					nwho = f"2group {name}"
 				elif whotypechr == "e":
 					nwho = "3everyone"
 				else:
@@ -108,14 +108,11 @@ class FSPerms(object):
 
 	@staticmethod
 	def __ldstr(d, header):
-		s = ""
-		for (nwho, perms) in sorted(d.items()):
-			# local and descend may have entries where perms
-			# is an empty set, due to consolidating all
-			# permissions into ld
-			if perms:
-				s += "\t%s %s\n" % \
-				    (nwho[1:], ",".join(sorted(perms)))
+		s = "".join(
+			"\t%s %s\n" % (nwho[1:], ",".join(sorted(perms)))
+			for nwho, perms in sorted(d.items())
+			if perms
+		)
 		if s:
 			s = header + s
 		return s
@@ -139,14 +136,13 @@ def args_to_perms(parser, options, who, perms):
 	# perms is not set if we are doing a "zfs unallow <who> <fs>" to
 	# remove all of someone's permissions
 	if perms:
-		setperms = dict(((p, None) for p in perms if p[0] == "@"))
-		baseperms = dict(((canonicalized_perm(p), None)
-		    for p in perms if p[0] != "@"))
+		setperms = {p: None for p in perms if p[0] == "@"}
+		baseperms = {canonicalized_perm(p): None for p in perms if p[0] != "@"}
 	else:
 		setperms = None
 		baseperms = None
 
-	d = dict()
+	d = {}
 
 	def storeperm(typechr, inheritchr, arg):
 		assert typechr in "ugecs"
@@ -278,7 +274,7 @@ def do_allow():
 		print_perms()
 		if msg:
 			print
-			parser.exit("zfs: error: " + msg)
+			parser.exit(f"zfs: error: {msg}")
 		else:
 			parser.exit()
 
@@ -327,7 +323,7 @@ def do_allow():
 			usage()
 		ds = zfs.dataset.Dataset(sys.argv[2], snaps=False)
 
-		p = dict()
+		p = {}
 		for (fs, raw) in ds.get_fsacl().items():
 			p[fs] = FSPerms(raw)
 

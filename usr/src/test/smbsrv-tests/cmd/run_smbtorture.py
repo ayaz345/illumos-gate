@@ -155,7 +155,7 @@ def fnm2regex(fnm_pat):
     # not 'smb2.test-other.second'.
     #
     if not fnm_pat.endswith('*'):
-        rpat += '|' + fnmatch.translate(fnm_pat + '.*')
+        rpat += f"|{fnmatch.translate(f'{fnm_pat}.*')}"
     return rpat
 
 def verbose_fnm2regex(fnm_pat):
@@ -167,18 +167,12 @@ def verbose_fnm2regex(fnm_pat):
 def combine_patterns(iterable, verbose):
     """Combines patterns in an iterable into a single REGEX"""
 
-    if verbose > 1:
-        func = verbose_fnm2regex
-    else:
-        func = fnm2regex
-
-    fnmatch_pat = '|'.join(map(func, iterable))
-
-    if not fnmatch_pat:
-        pat = None;
-    else:
+    func = verbose_fnm2regex if verbose > 1 else fnm2regex
+    if fnmatch_pat := '|'.join(map(func, iterable)):
         pat = re.compile(fnmatch_pat, flags=re.DEBUG if verbose > 2 else 0)
 
+    else:
+        pat = None;
     if verbose > 1:
         print(f'final pattern: {pat.pattern if pat else "<None>"}')
     return pat
@@ -223,7 +217,7 @@ def main():
 
     args = parser.parse_args()
 
-    if (args.match == None) == (args.list == None):
+    if (args.match is None) == (args.list is None):
         print('Must provide one of -l and -m')
         return
 
@@ -242,14 +236,14 @@ def main():
     else:
         testgen = args.list
 
-    if args.skip_list != None:
+    if args.skip_list is None:
+        skip_pat = None
+
+    else:
         skip_pat = combine_patterns(parse_tests(args.skip_list), args.verbose)
         if args.verbose > 1:
             exc_pat = skip_pat.pattern if skip_pat else '<NONE>'
             print(f'Exceptions pattern (in REGEX): {exc_pat}')
-    else:
-        skip_pat = None
-
     tests = TestSet(parse_tests(testgen), skip_pat, args.verbose)
 
     if args.verbose:

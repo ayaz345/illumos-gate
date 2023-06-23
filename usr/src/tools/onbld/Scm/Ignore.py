@@ -51,14 +51,12 @@ def _read_ignore_file(ignorefile):
             l = l.split('#', 2)[0].strip()
             if l == '':
                 continue
-            # Process "syntax:" lines
-            m = RE_SYNTAX.match(l)
-            if m:
+            if m := RE_SYNTAX.match(l):
                 syntax = m.group(1)
                 continue
             # All other lines are considered patterns
             if (syntax == 'glob'):
-                ignore_list.append(re.compile('.*' + fnmatch.translate(l)))
+                ignore_list.append(re.compile(f'.*{fnmatch.translate(l)}'))
             elif (syntax == 'regex'):
                 ignore_list.append(re.compile(l))
             else:
@@ -79,7 +77,7 @@ def ignore(root, ignorefiles):
 
     # If the ignore files contained no patterns, we'll never ignore
     # any paths:
-    if (len(ignore_list) < 1):
+    if not ignore_list:
         return lambda x: False
 
     def _ignore_func(path):

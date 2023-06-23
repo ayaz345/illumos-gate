@@ -29,18 +29,15 @@ def err(stream, fname, lineno, msg):
 	stream.write("%s:%d: %s\n" % (fname, lineno, msg))
 
 def wscheck(fh, output=sys.stderr):
-	lineno = 1
 	ret = 0
 
 	fname = fh.name
 
-	for line in fh:
+	for lineno, line in enumerate(fh, start=1):
 		if re.search(r' \t', line):
 			err(output, fname, lineno, stMsg);
 			ret = 1
 		if re.search(r'[ \t]$', line):
 			err(output, fname, lineno, twsMsg);
 			ret = 1
-		lineno += 1
-
 	return ret

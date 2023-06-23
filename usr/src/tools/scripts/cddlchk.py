@@ -58,7 +58,7 @@ class ExceptionList(object):
 			line = line.strip()
 
 			if line.strip().endswith('/'):
-				self.dirs.append(line[0:-1])
+				self.dirs.append(line[:-1])
 			elif line.startswith('*.'):
 				self.extensions.append(line)
 			else:
@@ -69,13 +69,12 @@ class ExceptionList(object):
 	def match(self, filename):
 		if os.path.isdir(filename):
 			return filename in self.dirs
-		else:
-			if filename in self.files:
-				return True
+		if filename in self.files:
+			return True
 
-			for pat in self.extensions:
-				if fnmatch.fnmatch(filename, pat):
-					return True
+		for pat in self.extensions:
+			if fnmatch.fnmatch(filename, pat):
+				return True
 
 	def __contains__(self, elt):
 		return self.match(elt)
@@ -106,19 +105,18 @@ def walker(opts, dirname, fnames):
 	for f in fnames:
 		path = os.path.join(dirname, f)
 
-		if not os.path.isdir(path):
-			if not path in opts['exclude']:
-				opts['status'] |= check(path, opts)
-		else:
+		if os.path.isdir(path):
 			if path in opts['exclude']:
 				fnames.remove(f)
+
+		elif path not in opts['exclude']:
+			opts['status'] |= check(path, opts)
 
 def walkpath(path, opts):
 	if os.path.isdir(path):
 		os.path.walk(path, walker, opts)
-	else:
-		if not path in opts['exclude']:
-			opts['status'] |= check(path, opts)
+	elif path not in opts['exclude']:
+		opts['status'] |= check(path, opts)
 
 def main(args):
 	options = {

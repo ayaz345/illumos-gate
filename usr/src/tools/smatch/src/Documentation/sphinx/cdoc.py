@@ -101,7 +101,7 @@ def readline_delim(lines, delim):
 			raise StopIteration
 		while line[-1] not in delim:
 			(n, l) = next(lines)
-			line += ' ' + l.lstrip()
+			line += f' {l.lstrip()}'
 	except:
 		line = ''
 	return (lineno, line)
@@ -115,17 +115,13 @@ def process_block(lines):
 	state = 'START'
 
 	(n, l) = lines.memo()
-	#print('processing line ' + str(n) + ': ' + l)
-
-	## is it a single line comment ?
-	m = re.match(r"^///\s+(.+)$", l)	# /// ...
-	if m:
+	if m := re.match(r"^///\s+(.+)$", l):
 		info['type'] = 'single'
-		info['desc'] = (n, m.group(1).rstrip())
+		info['desc'] = n, m[1].rstrip()
 		return info
 
 	## read the multi line comment
-	for (n, l) in lines:
+	for n, l in lines:
 		#print('state %d: %4d: %s' % (state, n, l))
 		if l.startswith('// '):
 			l = l[3:]					## strip leading '// '
@@ -142,13 +138,12 @@ def process_block(lines):
 			if l != '':
 				lines.undo()
 				state = 'TAGS'
-		elif state == 'TAGS':			## match the '@tagnames'
-			m = re.match(r"^@([\w-]*)(:?\s*)(.*)", l)
-			if m:
-				tag = m.group(1)
-				sep = m.group(2)
+		elif state == 'TAGS':	## match the '@tagnames'
+			if m := re.match(r"^@([\w-]*)(:?\s*)(.*)", l):
+				tag = m[1]
+				sep = m[2]
 				## FIXME/ warn if sep != ': '
-				l = m.group(3)
+				l = m[3]
 				l = readline_multi(lines, l)
 				tags.append((n, tag, l))
 			else:
@@ -160,9 +155,6 @@ def process_block(lines):
 				state = 'DESC'
 		elif state == 'DESC':			## remaining lines -> description
 			desc.append(l)
-		else:
-			pass
-
 	## fill the info
 	if len(tags):
 		info['tags'] = tags
@@ -217,13 +209,12 @@ def convert_to_rst(info):
 			for i in range(1, len(desc)):
 				l = desc[i]
 				lst.append((n+i, l))
-				# auto add a blank line for a list
-				if re.search(r":$", desc[i]) and re.search(r"\S", desc[i+1]):
+				if re.search(r":$", l) and re.search(r"\S", desc[i + 1]):
 					lst.append((n+i, ''))
 
 	elif typ == 'func':
 		(n, l) = info['func']
-		l = '.. c:function:: ' + l
+		l = f'.. c:function:: {l}'
 		lst.append((n, l + '\n'))
 		if 'short' in info:
 			(n, l) = info['short']
@@ -233,7 +224,7 @@ def convert_to_rst(info):
 		if 'tags' in info:
 			for (n, name, l) in info.get('tags', []):
 				if name != 'return':
-					name = 'param ' + name
+					name = f'param {name}'
 				l = decorate(l)
 				l = '\t:%s: %s' % (name, l)
 				l = '\n\t\t'.join(l.split('\n'))

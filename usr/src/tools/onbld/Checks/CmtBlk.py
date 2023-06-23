@@ -59,22 +59,18 @@ def cmtblkchk(fh, blk_name, blk_text, filename=None,
 	lic = []
 	in_cmt = False
 	start = 0
-	lineno = 0
-
-	StartText = '%s HEADER START' % blk_name
-	EndText = '%s HEADER END' % blk_name
+	StartText = f'{blk_name} HEADER START'
+	EndText = f'{blk_name} HEADER END'
 	full_text = [StartText, ''] + blk_text + ['', EndText]
 
-	StartRE = re.compile(r'^[%s ]*%s' % (CmntChrs, StartText))
-	EndRE = re.compile(r'^[%s ]*%s' % (CmntChrs, EndText))
+	StartRE = re.compile(f'^[{CmntChrs} ]*{StartText}')
+	EndRE = re.compile(f'^[{CmntChrs} ]*{EndText}')
 
 	if not filename:
 		filename = fh.name
 
-	for line in fh:
+	for lineno, line in enumerate(fh, start=1):
 		line = line.rstrip('\r\n')
-		lineno += 1
-
 		if StartRE.search(line):
 			in_cmt = True
 			lic.append(line)

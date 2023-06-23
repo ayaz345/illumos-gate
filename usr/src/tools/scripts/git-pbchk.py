@@ -89,10 +89,7 @@ def git(command):
         raise GitError(p.stderr.read())
 
     tmpfile.seek(0)
-    lines = []
-    for l in tmpfile:
-        lines.append(l.decode('utf-8', 'replace'))
-    return lines
+    return [l.decode('utf-8', 'replace') for l in tmpfile]
 
 def git_root():
     """Return the root of the current git workspace"""
@@ -109,9 +106,7 @@ def git_branch():
 
     for elt in p:
         if elt[0] == '*':
-            if elt.endswith('(no branch)'):
-                return None
-            return elt.split()[1]
+            return None if elt.endswith('(no branch)') else elt.split()[1]
 
 def git_parent_branch(branch):
     """Return the parent of the current git branch.
@@ -154,8 +149,7 @@ def git_file_list(parent, paths=None):
     NB: This includes files which no longer exist, or no longer actually
     differ."""
 
-    p = git("log --name-only --pretty=format: %s.. %s" %
-             (parent, ' '.join(paths)))
+    p = git(f"log --name-only --pretty=format: {parent}.. {' '.join(paths)}")
 
     if not p:
         sys.stderr.write("Failed building file-list from git\n")
@@ -172,9 +166,15 @@ def not_check(root, cmd):
     """Return a function which returns True if a file given as an argument
     should be excluded from the check named by 'cmd'"""
 
-    ignorefiles = list(filter(os.path.exists,
-                         [os.path.join(root, ".git/info", "%s.NOT" % cmd),
-                          os.path.join(root, "exception_lists", cmd)]))
+    ignorefiles = list(
+        filter(
+            os.path.exists,
+            [
+                os.path.join(root, ".git/info", f"{cmd}.NOT"),
+                os.path.join(root, "exception_lists", cmd),
+            ],
+        )
+    )
     return Ignore.ignore(root, ignorefiles)
 
 def gen_files(root, parent, paths, exclude, filter=None):
@@ -200,7 +200,7 @@ def gen_files(root, parent, paths, exclude, filter=None):
         for abspath in git_file_list(parent, paths):
             path = relpath(abspath, '.')
             try:
-                res = git("diff %s HEAD %s" % (parent, path))
+                res = git(f"diff {parent} HEAD {path}")
             except GitError as e:
                 # This ignores all the errors that can be thrown. Usually, this
                 # means that git returned non-zero because the file doesn't
@@ -212,6 +212,7 @@ def gen_files(root, parent, paths, exclude, filter=None):
             if (filter(path) and not empty and
                 select(path) and not exclude(abspath)):
                 yield path
+
     return ret
 
 def gen_links(root, parent, paths, exclude):
@@ -353,7 +354,7 @@ def symlinks(root, parent, flist, output):
     ret = 0
     output.write("Symbolic links:\n")
     for f in flist():
-        output.write("  "+f+"\n")
+        output.write(f"  {f}" + "\n")
         ret |= 1
     return ret
 
@@ -365,31 +366,25 @@ def iswinreserved(name):
         'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5',
         'lpt6', 'lpt7', 'lpt8', 'lpt9', 'lpt0' ]
     l = name.lower()
-    for r in reserved:
-        if l == r or l.startswith(r+"."):
-            return True
-    return False
+    return any(l == r or l.startswith(f"{r}.") for r in reserved)
 
 def haswinspecial(name):
     specials = '<>:"\\|?*'
-    for c in name:
-        if c in specials:
-            return True
-    return False
+    return any(c in specials for c in name)
 
 def winnames(root, parent, flist, output):
     ret = 0
     output.write("Illegal filenames (Windows):\n")
     for f in flist():
         if haswinspecial(f):
-            output.write("  "+f+": invalid character in name\n")
+            output.write(f"  {f}" + ": invalid character in name\n")
             ret |= 1
             continue
 
         parts = f.split('/')
         for p in parts:
             if iswinreserved(p):
-                output.write("  "+f+": reserved file name\n")
+                output.write(f"  {f}" + ": reserved file name\n")
                 ret |= 1
                 break
 
@@ -474,7 +469,7 @@ def main(cmd, args):
 
     for opt, arg in opts:
         # We accept "-b" as an alias of "-p" for backwards compatibility.
-        if opt == '-p' or opt == '-b':
+        if opt in ['-p', '-b']:
             parent_branch = arg
         elif opt == '-c':
             checkname = arg
@@ -483,11 +478,7 @@ def main(cmd, args):
         parent_branch = git_parent_branch(git_branch())
 
     if checkname is None:
-        if cmd == 'git-pbchk':
-            checkname = 'pbchk'
-        else:
-            checkname = 'nits'
-
+        checkname = 'pbchk' if cmd == 'git-pbchk' else 'nits'
     if checkname == 'pbchk':
         if args:
             sys.stderr.write("only complete workspaces may be pbchk'd\n");

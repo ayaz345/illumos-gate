@@ -52,11 +52,7 @@ except getopt.GetoptError:
 	usage()
 	sys.exit(2)
 
-lenient = False
-for opt, arg in opts:
-	if opt == '-a':
-		lenient = True
-
+lenient = any(opt == '-a' for opt, arg in opts)
 ret = 0
 for filename in args:
 	try:

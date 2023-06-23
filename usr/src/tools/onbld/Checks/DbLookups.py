@@ -49,11 +49,11 @@ except ImportError:
 
 class NonExistentBug(Exception):
 	def __str__(self):
-		return "Bug %s does not exist" % (Exception.__str__(self))
+		return f"Bug {Exception.__str__(self)} does not exist"
 
 class BugDBException(Exception):
 	def __str__(self):
-		return "Unknown bug database: %s" % (Exception.__str__(self))
+		return f"Unknown bug database: {Exception.__str__(self)}"
 
 class BugDB(object):
 	"""Lookup change requests.
@@ -81,13 +81,13 @@ class BugDB(object):
 
 
 	def __illbug(self, cr):
-		url = "http://illumos.org/issues/%s.xml" % cr
+		url = f"http://illumos.org/issues/{cr}.xml"
 		req = Request(url)
 
 		try:
 			data = urlopen(req)
 		except HTTPError as e:
-			if e.code == 401 or e.code == 404:
+			if e.code in [401, 404]:
 				raise NonExistentBug(cr)
 			else:
 				raise

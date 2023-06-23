@@ -31,7 +31,7 @@ def check(fh, filename=None, output=sys.stderr, **opts):
 		# Manifest passes validation
 		return 0
 
-	output.write('{} is not in pkgfmt v2 form;\n'.format(filename))
+	output.write(f'{filename} is not in pkgfmt v2 form;\n')
 	output.write('run `pkgfmt -f v2` on the file to re-format ' +
 	    'the manifest in-place\n')
 
